@@ -1,0 +1,56 @@
+name: Build and Deploy Docs
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure pandoc is available
+        run: |
+          if ! command -v pandoc >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y pandoc
+          fi
+
+      - name: Build HTML from Markdown
+        run: |
+          chmod +x scripts/build-docs.sh
+          ./scripts/build-docs.sh
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy GitHub Pages site
+        id: deployment
+        uses: actions/deploy-pages@v4
